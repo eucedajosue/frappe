@@ -20,6 +20,8 @@ export default class LinksWidget extends Widget {
 	}
 
 	set_body() {
+		const is_touchscreen = frappe.dom.is_touchscreen();
+
 		if (!this.options) {
 			this.options = {};
 			this.options.links = this.links;
@@ -34,8 +36,10 @@ export default class LinksWidget extends Widget {
 			`).appendTo(this.widget.find(".widget-title"));
 
 			description.popover({
-				trigger: "hover",
+				trigger: is_touchscreen ? "focus" : "hover",
 				placement: "top",
+				container: "body",
+				boundary: "viewport",
 				content: () => `<div class="card-description small">${__(this.description)}</div>`,
 				html: true,
 			});
@@ -111,10 +115,12 @@ export default class LinksWidget extends Widget {
 				</a>
 			`);
 
-			if (item.description) {
+			if (item.description && !is_touchscreen) {
 				$link.find(".link-text").popover({
 					trigger: "hover",
 					placement: "top",
+					container: "body",
+					boundary: "viewport",
 					title: item.link_title,
 					content: () =>
 						`<div class="link-description small">${__(item.description)}</div>`,
