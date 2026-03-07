@@ -835,36 +835,6 @@ body {
 	}
 }
 
-@media (max-width: 480px) and (orientation: portrait) {
-	.desktop-icon {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: flex-start;
-		gap: 6px;
-		height: auto;
-		min-height: 92px;
-	}
-
-	.desktop-icon .icon-caption {
-		position: static;
-		width: 100%;
-		min-width: 0;
-		margin: 0;
-	}
-
-	.desktop-icon .icon-title {
-		display: block;
-		white-space: normal;
-		overflow: visible;
-		text-overflow: clip;
-		overflow-wrap: anywhere;
-		word-break: break-word;
-		line-height: 1.2;
-		text-align: center;
-	}
-}
-
 .onboarding-success {
 	margin: var(--margin-lg) auto;
 	max-width: 75%;
@@ -1429,5 +1399,17 @@ body {
 
 	.dropdown-item-icon {
 		margin-right: 5px;
+	}
+
+	@media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+		.codex-editor .codex-editor__redactor > .ce-block[class*="col-"] {
+			width: 100% !important;
+			max-width: 100% !important;
+			flex: 0 0 100% !important;
+		}
+
+		.codex-editor .codex-editor__redactor > .ce-block .ce-block__content {
+			height: auto;
+		}
 	}
 }
