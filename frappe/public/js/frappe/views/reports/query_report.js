@@ -650,6 +650,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			this.$collapse_button.on("click", function () {
 				me.toggle_filter_visiblity();
 			});
+			this.$collapse_button.css("cursor", "pointer");
 		}
 	}
 	handle_filter_styles(wrapper) {
@@ -1546,6 +1547,20 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		});
 	}
 
+	get_validated_visible_indexes() {
+		// excludes total row idx, because it will always be visible
+		const visible_idx = this.datatable?.bodyRenderer.visibleRowIndices || [];
+
+		if (!visible_idx?.length) {
+			frappe.throw({
+				title: __("No data to perform this action"),
+				message: __("Please adjust filters to include some data"),
+			});
+		}
+
+		return visible_idx;
+	}
+
 	async print_report(print_settings) {
 		const filters_html = this.get_filters_html_for_print();
 		const landscape = print_settings.orientation == "Landscape";
@@ -1715,6 +1730,8 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 	}
 
 	export_report() {
+		let visible_idx = this.get_validated_visible_indexes();
+
 		const extra_fields = [];
 		const applied_filters = this.get_applied_filters(this.get_filter_values());
 
@@ -1782,10 +1799,12 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 					filters.prepared_report_name = this.prepared_report_name;
 				}
 
-				const visible_idx = this.datatable?.bodyRenderer.visibleRowIndices || [];
-				if (visible_idx.length + 1 === this.data?.length) {
-					visible_idx.push(visible_idx.length);
-				}
+				// excluding total row index
+				const ignore_visible_idx =
+					visible_idx.length ===
+					this.data.length - (this.raw_data.add_total_row ? 1 : 0);
+				visible_idx = ignore_visible_idx ? [] : visible_idx;
+
 				const args = {
 					cmd: "frappe.desk.query_report.export_query",
 					report_name: this.report_name,
@@ -1794,6 +1813,7 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 					filters: filters,
 					applied_filters: applied_filters,
 					visible_idx,
+					ignore_visible_idx,
 					csv_delimiter,
 					csv_quoting,
 					csv_decimal_sep,
@@ -1908,7 +1928,10 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			},
 			{
 				label: __("Print"),
+
 				action: () => {
+					this.get_validated_visible_indexes();
+
 					let dialog = frappe.ui.get_print_settings(
 						false,
 						(print_settings) => this.print_report(print_settings),
@@ -1924,6 +1947,8 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 			{
 				label: __("PDF"),
 				action: () => {
+					this.get_validated_visible_indexes();
+
 					let dialog = frappe.ui.get_print_settings(
 						false,
 						(print_settings) => this.pdf_report(print_settings),
