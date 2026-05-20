@@ -73,8 +73,7 @@ class Report(Document):
 				frappe.throw(_("Cannot edit a standard report. Please duplicate and create a new report"))
 
 		if self.is_standard == "Yes":
-			if frappe.session.user != "Administrator":
-				frappe.throw(_("Only Administrator can save a standard report. Please rename and save."))
+			self.validate_standard_report()
 
 			# Letter Head is visible only for non-standard reports.
 			# It should not remain set when it's invisible.
@@ -371,28 +370,39 @@ class Report(Document):
 		return order_by, group_by, group_by_args
 
 	def build_standard_report_columns(self, columns, group_by_args):
-		_columns = []
+		from frappe.model.meta import get_default_df
+
+		report_columns = []
 
 		for fieldname, doctype in columns:
 			meta = frappe.get_meta(doctype)
 
-			if meta.get_field(fieldname):
-				field = meta.get_field(fieldname)
+			if meta_df := meta.get_field(fieldname):
+				column = meta_df.as_dict()
+			elif default_df := get_default_df(fieldname):
+				column = default_df.copy()
+
+				if not column.get("label"):
+					column.label = meta.get_label(fieldname)
 			else:
-				if fieldname == "_aggregate_column":
-					label = get_group_by_column_label(group_by_args, meta)
-				else:
-					label = meta.get_label(fieldname)
+				label = (
+					get_group_by_column_label(group_by_args, meta)
+					if fieldname == "_aggregate_column"
+					else meta.get_label(fieldname)
+				)
 
-				field = frappe._dict(fieldname=fieldname, label=label)
+				column = frappe._dict(
+					{
+						"fieldname": fieldname,
+						"label": label,
+						"fieldtype": "Link" if fieldname == "name" else "Data",
+						"options": doctype if fieldname == "name" else None,
+					}
+				)
 
-				# since name is the primary key for a document, it will always be a Link datatype
-				if fieldname == "name":
-					field.fieldtype = "Link"
-					field.options = doctype
+			report_columns.append(column)
 
-			_columns.append(field)
-		return _columns
+		return report_columns
 
 	def build_data_dict(self, result, columns):
 		data = []
@@ -407,6 +417,18 @@ class Report(Document):
 			data.append(_row)
 
 		return data
+
+	def validate_standard_report(self):
+		if frappe.session.user != "Administrator":
+			frappe.throw(_("Only Administrator can save a standard report. Please rename and save."))
+
+		if not cint(frappe.conf.developer_mode) and not (
+			frappe.flags.in_migrate
+			or frappe.flags.in_patch
+			or frappe.flags.in_install
+			or frappe.flags.in_import
+		):
+			frappe.throw(_("Standard reports can only be created in developer mode."))
 
 	@frappe.whitelist()
 	def toggle_disable(self, disable: bool):
