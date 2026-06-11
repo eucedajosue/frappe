@@ -1,5 +1,5 @@
-import "./sidebar_item";
 import { SidebarEditor } from "./sidebar_editor";
+import "./sidebar_item";
 frappe.ui.Sidebar = class Sidebar {
 	constructor() {
 		if (!frappe.boot.setup_complete) {
@@ -257,7 +257,10 @@ frappe.ui.Sidebar = class Sidebar {
 		}
 
 		$(document).trigger("sidebar_setup", { sidebar: this });
-		this.sidebar_title = workspace_title;
+		this.sidebar_title = workspace_title || this.sidebar_title || this.preferred_sidebars?.[0];
+		if (!this.sidebar_title) {
+			return;
+		}
 		this.check_for_private_workspace(workspace_title);
 		this.workspace_title = this.sidebar_title.toLowerCase();
 
@@ -689,11 +692,13 @@ frappe.ui.Sidebar = class Sidebar {
 			if (sidebars.length == 1) {
 				frappe.app.sidebar.setup(sidebars[0]);
 			} else if (sidebars.length > 1) {
-				let sidebar = this.get_workspace_for_module(module);
-				if (sidebars.includes(this.get_workspace_for_module(module))) {
+				let sidebar = module ? this.get_workspace_for_module(module) : null;
+				if (sidebar && sidebars.includes(sidebar)) {
 					frappe.app.sidebar.setup(sidebar);
-				} else {
+				} else if (module && sidebars.includes(module)) {
 					frappe.app.sidebar.setup(module);
+				} else {
+					frappe.app.sidebar.setup(sidebars[0]);
 				}
 			} else if (module) {
 				this.show_sidebar_for_module(module);
