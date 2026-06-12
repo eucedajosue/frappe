@@ -686,16 +686,16 @@ frappe.ui.Sidebar = class Sidebar {
 					frappe.boot.module_app[module.toLowerCase().replace(/[ -]/g, "_")]
 				);
 			}
-			if (sidebars.length == 1) {
-				frappe.app.sidebar.setup(sidebars[0]);
-			} else if (sidebars.length > 1) {
-				let sidebar = module ? this.get_workspace_for_module(module) : null;
-				if (sidebar && sidebars.includes(sidebar)) {
-					frappe.app.sidebar.setup(sidebar);
-				} else if (module && sidebars.includes(module)) {
-					frappe.app.sidebar.setup(module);
+			if (candidates.length == 1) {
+				sidebar_name = candidates[0];
+			} else if (candidates.length > 1) {
+				let sidebar = module ? this.resolve_module_sidebar(module) : null;
+				if (sidebar && candidates.includes(sidebar)) {
+					sidebar_name = sidebar;
+				} else if (module && candidates.includes(module)) {
+					sidebar_name = module;
 				} else {
-					frappe.app.sidebar.setup(sidebars[0]);
+					sidebar_name = candidates[0];
 				}
 			} else if (module) {
 				sidebar_name = this.resolve_module_sidebar(module);
