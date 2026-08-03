@@ -295,6 +295,21 @@ class TestResourceAPI(FrappeAPITestCase):
 			self.assertIsInstance(data, list)
 			self.assertIsInstance(data[0], dict)
 
+	def test_run_doc_method_v1_validates_http_method(self):
+		doc = frappe.get_doc("Website Theme", "Standard")
+		method = getattr(doc.get_apps, "__func__", doc.get_apps)
+
+		with (
+			patch.dict(frappe.allowed_http_methods_for_whitelisted_func, {method: ["POST"]}),
+			suppress_stdout(),
+		):
+			response = self.get(
+				self.resource("Website Theme", "Standard"),
+				{"run_method": "get_apps", "sid": self.sid},
+			)
+
+		self.assertEqual(response.status_code, 403)
+
 
 class TestMethodAPI(FrappeAPITestCase):
 	def test_ping(self):
@@ -375,6 +390,16 @@ class TestMethodAPI(FrappeAPITestCase):
 		response = self.post(self.method(method), test_data)
 
 		self.assertEqual(response.json["message"], test_data)
+
+	def test_unserializable_response_v1(self):
+		method = "frappe.tests.test_api.test_unserializable_response"
+
+		with suppress_stdout():
+			response = self.get(self.method(method), {"sid": self.sid})
+
+		self.assertEqual(response.status_code, 500)
+		self.assertEqual(response.json["exc_type"], "TypeError")
+		self.assertIn("Integer exceeds 64-bit range", response.json["exception"])
 
 
 class TestReadOnlyMode(FrappeAPITestCase):
@@ -539,3 +564,8 @@ def test(*, fail=False, handled=True, message="Failed"):
 @whitelist_for_tests(allow_guest=True)
 def test_array(data):
 	return data
+
+
+@whitelist_for_tests()
+def test_unserializable_response():
+	frappe.response["value"] = 2**70

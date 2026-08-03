@@ -1,5 +1,6 @@
 import typing
 from random import choice
+from unittest.mock import patch
 
 import requests
 
@@ -125,6 +126,20 @@ class TestResourceAPIV2(FrappeAPITestCase):
 		response = self.get(self.resource("Website Theme", "Standard", "method", "get_apps"))
 		self.assertEqual(response.json["data"][0]["name"], "frappe")
 
+	def test_execute_doc_method_v2_validates_http_method(self):
+		doc = frappe.get_doc("Website Theme", "Standard")
+		method = getattr(doc.get_apps, "__func__", doc.get_apps)
+
+		with (
+			patch.dict(frappe.allowed_http_methods_for_whitelisted_func, {method: ["POST"]}),
+			suppress_stdout(),
+		):
+			response = self.get(
+				self.resource("Website Theme", "Standard", "method", "get_apps"), {"sid": self.sid}
+			)
+
+		self.assertEqual(response.status_code, 403)
+
 	def test_update_document(self):
 		generated_desc = frappe.mock("paragraph")
 		data = {"description": generated_desc, "sid": self.sid}
@@ -194,6 +209,15 @@ class TestMethodAPIV2(FrappeAPITestCase):
 			self.method("frappe.core.doctype.user.user.get_all_roles"), {"sid": self.sid}
 		)
 		self.assertEqual(expanded_response.data, shorthand_response.data)
+
+	def test_unserializable_response_v2(self):
+		method = "frappe.tests.test_api.test_unserializable_response"
+
+		with suppress_stdout():
+			response = self.get(self.method(method), {"sid": self.sid})
+
+		self.assertEqual(response.status_code, 500)
+		self.assertEqual(response.json["errors"][0]["type"], "TypeError")
 
 	def test_logout(self):
 		self.post(self.method("logout"), {"sid": self.sid})

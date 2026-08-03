@@ -99,6 +99,8 @@ select.form-control {
 	.status-text {
 		position: absolute;
 		top: 4px;
+		left: 8px;
+		right: 8px;
 	}
 
 	.dropdown-menu {
@@ -384,6 +386,11 @@ textarea.form-control {
 
 .frappe-control .control-value {
 	overflow-wrap: break-word;
+}
+
+.frappe-control[data-fieldtype="Text Editor"] .control-value {
+	max-height: 300px;
+	overflow: auto;
 }
 
 .frappe-control[data-fieldtype="Data"] .control-input,
