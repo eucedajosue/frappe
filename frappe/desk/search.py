@@ -184,6 +184,7 @@ def search_widget(
 		filters.append([doctype, "name", "=", txt])
 
 	or_filters = []
+	search_terms = get_search_terms(txt)
 
 	# build from doctype
 	if txt:
@@ -205,10 +206,15 @@ def search_widget(
 		if meta.search_fields:
 			search_fields.extend(meta.get_search_fields())
 
+		match_terms = [txt]
+		if len(search_terms) > 1:
+			match_terms.extend(term for term in search_terms if term not in match_terms)
+
 		for f in search_fields:
 			fmeta = meta.get_field(f.strip())
 			if not meta.translated_doctype and (f == "name" or (fmeta and fmeta.fieldtype in field_types)):
-				or_filters.append([doctype, f.strip(), "like", f"%{txt}%"])
+				for term in match_terms:
+					or_filters.append([doctype, f.strip(), "like", f"%{term}%"])
 
 	if not include_disabled:
 		if meta.get("fields", {"fieldname": "enabled", "fieldtype": "Check"}):
@@ -240,13 +246,18 @@ def search_widget(
 		formatted_fields.append(_relevance)
 		order_by = f"_relevance desc, {order_by}"
 
+	limit_page_length = None if meta.translated_doctype else page_length
+	if len(search_terms) > 1 and not for_link_validation and not meta.translated_doctype:
+		# Fetch a slightly wider candidate set for token matching in Python.
+		limit_page_length = max(page_length * 5, 50)
+
 	values = frappe.get_list(
 		doctype,
 		filters=filters,
 		fields=formatted_fields,
 		or_filters=or_filters,
 		limit_start=start,
-		limit_page_length=None if meta.translated_doctype else page_length,
+		limit_page_length=limit_page_length,
 		order_by=order_by,
 		ignore_permissions=doctype == "DocType",
 		ignore_user_permissions=ignore_user_permissions,
@@ -259,10 +270,14 @@ def search_widget(
 		if meta.translated_doctype:
 			values = filter_translated(values, txt, as_dict)
 
+		if len(search_terms) > 1:
+			values = filter_by_search_terms(values, search_terms, as_dict)
+
 		# Sorting the values array so that relevant results always come first
 		# This will first bring elements on top in which query is a prefix of element
 		# Then it will bring the rest of the elements and sort them in lexicographical order
 		values = sorted(values, key=lambda x: relevance_sorter(x, txt, as_dict))
+		values = values[:page_length]
 
 		# remove _relevance from results
 		if not meta.translated_doctype:
@@ -439,6 +454,24 @@ def filter_translated(values, txt: str, as_dict: bool) -> list:
 			for value in (result.values() if as_dict else result)
 		)
 	]
+
+
+def get_search_terms(txt: str) -> list[str]:
+	return [term for term in re.split(r"\s+", (txt or "").strip()) if term]
+
+
+def filter_by_search_terms(values: list, search_terms: list[str], as_dict: bool) -> list:
+	search_terms = [term.casefold() for term in search_terms]
+	filtered_results = []
+
+	for result in values:
+		result_values = result.values() if as_dict else result
+		haystack = " ".join(cstr(value).casefold() for value in result_values if value is not None)
+
+		if all(term in haystack for term in search_terms):
+			filtered_results.append(result)
+
+	return filtered_results
 
 
 @frappe.whitelist()

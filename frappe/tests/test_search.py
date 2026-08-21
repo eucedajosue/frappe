@@ -179,6 +179,10 @@ class TestSearch(IntegrationTestCase):
 		frappe.db.set_value("Language", "es", "idx", 10)
 		self.assertEqual("es", search(txt="es")[0]["value"])
 
+	def test_search_matches_words_in_any_order(self):
+		results = search_link(doctype="Role", txt="Manager System", filters=None, page_length=20)
+		self.assertIn("System Manager", [row["value"] for row in results])
+
 	def test_search_with_paren(self):
 		search = partial(search_link, doctype="Language", filters=None, page_length=10)
 		result = search(txt="(txt)")
