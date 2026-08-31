@@ -20492,7 +20492,7 @@ msgstr "Seleccionar columnas"
 #. Option for the 'Type' (Select) field in DocType 'Dashboard Chart'
 #: frappe/desk/doctype/dashboard_chart/dashboard_chart.json
 msgid "Pie"
-msgstr "Torta"
+msgstr ""
 
 #: frappe/public/js/frappe/ui/toolbar/search.js:700
 #: frappe/public/js/frappe/ui/toolbar/search.js:702
