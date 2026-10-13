@@ -525,7 +525,7 @@ def get_names_for_mentions(search_term: str, page_length: int = 10):
 def get_users_for_mentions():
 	return frappe.get_all(
 		"User",
-		fields=["name as id", "full_name as value"],
+		fields=["name as id", "full_name as value", "email"],
 		filters={
 			"name": ["not in", ("Administrator", "Guest")],
 			"allowed_in_mentions": True,
@@ -613,8 +613,8 @@ def get_link_title(doctype: str, docname: str | int):
 	if meta.show_title_field_in_link:
 		try:
 			doc = frappe.get_lazy_doc(doctype, docname)
-			doc.check_permission()
-			return doc.get(meta.title_field)
+			if has_permission(doctype, "read", doc, print_logs=False):
+				return doc.get(meta.title_field)
 		except frappe.DoesNotExistError:
 			frappe.clear_last_message()
 
