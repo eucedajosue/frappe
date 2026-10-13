@@ -1,4 +1,58 @@
 import "./sidebar_item";
+import "./dock";
+
+// A module's icon. The dock row wins over the Sidebar's `header_icon`, so the header matches the tile.
+frappe.get_module_icon = function (module) {
+	if (!module) return null;
+	const rows = (frappe.boot.app_data || []).flatMap((app) => [
+		...((frappe.boot.dock || {})[app.app_name] || []),
+		...(app.dock || []),
+	]);
+	const row = rows.find((r) => r.link_type === "Sidebar" && r.link_to === module && r.icon);
+	return row?.icon || frappe.boot.module_sidebars?.[module]?.header_icon || null;
+};
+
+// Route prefixes that name an entity of another kind. `dashboard-view` is itself a Page, so it is
+// checked before page_info.
+const ENTITY_VIEW_ROUTES = {
+	"query-report": "Report",
+	"dashboard-view": "Dashboard",
+};
+
+// Also named by the router, the workspace view and the arrangement editor; it matches
+// `workspace.PRIVATE_MODULE` on the server.
+frappe.provide("frappe.ui");
+frappe.ui.PRIVATE_SHELL = "Private";
+
+// How strongly an item's href claims `path` (0 means not at all). An item also claims the URLs
+// under it, a workspace only its own. Matching filters beat length, and a longer href beats a
+// shorter one.
+function route_claim(raw_href, link_type, path, params) {
+	const [href_path, query] = (raw_href || "").split("?");
+	const href = strip_trailing_slash(decodeURIComponent(href_path.split("#")[0]));
+
+	// A root href strips to "", which would claim every page.
+	if (!href) return 0;
+
+	const exact = path === href;
+	const under = path.startsWith(href + "/");
+	if (!exact && !(under && link_type !== "Workspace")) return 0;
+
+	let filtered = false;
+	if (query) {
+		for (const [key, value] of new URLSearchParams(query)) {
+			if (String(params[key]) !== String(value)) return 0;
+		}
+		filtered = true;
+	}
+
+	return (filtered ? 1e6 : 0) + href.length * 2 + (exact ? 1 : 0);
+}
+
+function strip_trailing_slash(path) {
+	return path.replace(/\/$/, "");
+}
+
 frappe.ui.Sidebar = class Sidebar {
 	constructor() {
 		if (!frappe.boot.setup_complete) {
